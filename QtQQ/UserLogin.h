@@ -21,8 +21,8 @@ private:
 	//验证账号与密码
 	//strAccount,不一定是账号，有可能是QQ号
 	//因为要获取两个参数的值，所以用引用方式传参
-	bool veryfyAccountCode(bool& isAccountLogin, QString& strAccount);
-
+	//bool veryfyAccountCode(bool& isAccountLogin, QString& strAccount);
+	bool veryfyAccountCode();
 private:
 	Ui::UserLogin ui;
 };

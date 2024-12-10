@@ -26,10 +26,11 @@ public:
     QWidget* addOtherAppExtension(const QString& appPath, const QString& appName);
 
     //初始化联系人
-    void initContacTree();
+    void initContactTree();
 
     //传入部门ID
     //void addCompanyDeps(QTreeWidgetItem* pRootGroupItem, int DepID);
+    void addCompanyDeps(QTreeWidgetItem* pRootGroupItem, const QString& sDeps);
 
 private:
     //当窗口改变的时候，用户名前后要保持一致
@@ -40,7 +41,7 @@ private:
     bool eventFilter(QObject* obj, QEvent* event);
 
     //重写鼠标按下事件
-   // void mousePressEvent(QMouseEvent* event);
+    void mousePressEvent(QMouseEvent* event);
 
     //更新搜索框样式
     void updateSearchStyle();
@@ -49,10 +50,11 @@ private slots:
     void onAppIconClicked();            //更换皮肤
 
     void onItemClicked(QTreeWidgetItem* item, int column);      //单击，点击column列
-    void onItemExpamded(QTreeWidgetItem* item);                    //展开
+    void onItemExpanded(QTreeWidgetItem* item);                    //展开
     void onItemCollapsed(QTreeWidgetItem* item);                     //收缩
     void onItemDoubleClicked(QTreeWidgetItem* item, int column);        //双击
 
 private:
     Ui::CCMainWindowClass ui;
+    QMap<QTreeWidgetItem*, QString> m_groupMap;     //所有分组的项
 };
