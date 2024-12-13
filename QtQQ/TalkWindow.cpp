@@ -6,10 +6,10 @@
 #include <QToolTip>
 #include <QFile>
 #include <QMessageBox>
-TalkWindow::TalkWindow(QWidget* parent , const QString& uid, GroupType groupType)
+TalkWindow::TalkWindow(QWidget* parent , const QString& uid/*, GroupType groupType*/)
 	: QWidget(parent)
 	,m_talkId(uid)
-	,m_groupType(groupType)
+	//,m_groupType(groupType)
 {
 	ui.setupUi(this);
 	WindowManager::getInstance()->addWindowName(m_talkId, this);
@@ -41,7 +41,7 @@ void TalkWindow::onItemDoubleClicked(QTreeWidgetItem* item, int column)
 	if (bIsChild)
 	{
 		QString strPeppleName = m_groupPeopleMap.value(item);
-		WindowManager::getInstance()->addNewTalkWindow(item->data(0, Qt::UserRole + 1).toString(), PTOP, strPeppleName);
+		WindowManager::getInstance()->addNewTalkWindow(item->data(0, Qt::UserRole + 1).toString()/*, PTOP, strPeppleName*/);
 	}
 }
 
@@ -346,33 +346,35 @@ void TalkWindow::initControl()
 	connect(ui.treeWidget, SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)),
 		this, SLOT(onItemDoubleClicked(QTreeWidgetItem*, int)));
 
+	/*
 	//初始化结束，开始做判断
 	switch (m_groupType)
 	{
-	case COMPANY:
-	{
-		initComPanyTalk();			//初始化公司群聊天
-		break;
+		case COMPANY:
+		{
+			initComPanyTalk();			//初始化公司群聊天
+			break;
+		}
+		case PERSONELGROUP:
+		{
+			initPersonelTalk();
+			break;
+		}
+		case DEVELOPMENTGROUP:
+		{
+			initDevelopTalk();
+			break;
+		}
+		case MARKETGROUP:
+		{
+			initMarketTalk();
+			break;
+		}
+		default:		//默认单聊
+		{
+			initPtoPTalk();				//初始化市场部聊天
+			break;
+		}
 	}
-	case PERSONELGROUP:
-	{
-		initPersonelTalk();
-		break;
-	}
-	case DEVELOPMENTGROUP:
-	{
-		initDevelopTalk();
-		break;
-	}
-	case MARKETGROUP:
-	{
-		initMarketTalk();
-		break;
-	}
-	default:		//默认单聊
-	{
-		initPtoPTalk();				//初始化市场部聊天
-		break;
-	}
-	}
+	*/
 }

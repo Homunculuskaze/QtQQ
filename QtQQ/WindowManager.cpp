@@ -1,6 +1,8 @@
 #include "WindowManager.h"
 #include "TalkWindowItem.h"
 #include "TalkWindow.h"
+
+#include <QSqlQueryModel>
 //单例模式，创建全局静态对象
 Q_GLOBAL_STATIC(WindowManager, theInstance);
 
@@ -50,7 +52,7 @@ WindowManager* WindowManager::getInstance()
 	return theInstance();
 }
 
-void WindowManager::addNewTalkWindow(const QString& uid, GroupType groupType, const QString strPeople)
+void WindowManager::addNewTalkWindow(const QString& uid/*, GroupType groupType, const QString strPeople*/)
 {
 	if (m_talkwindowshell == nullptr)
 	{
@@ -68,9 +70,33 @@ void WindowManager::addNewTalkWindow(const QString& uid, GroupType groupType, co
 
 	if (!widget)
 	{
-		TalkWindow* talkwindow = new TalkWindow(m_talkwindowshell, uid, groupType);
+		TalkWindow* talkwindow = new TalkWindow(m_talkwindowshell, uid/*, groupType*/);
 		TalkWindowItem* talkwindowItem = new TalkWindowItem(talkwindow);
 
+		//判断是群聊还是单聊
+		QSqlQueryModel sqlDepModel;
+		QString strSql = QString("SELECT department_name,sign FROM tab_department WHERE departmentID = %1").arg(uid);
+		sqlDepModel.setQuery(strSql);
+		int rows = sqlDepModel.rowCount();
+
+		QString strWindowName, strMsgLabel;
+		if (rows == 0)		//单聊
+		{
+			QString sql = QString("SELECT employee_name,employee_sign FROM tab_employees WHERE employeeID = %1").arg(uid);
+			sqlDepModel.setQuery(sql);
+		}
+
+		QModelIndex indexDepIndex, signIndex;
+		indexDepIndex = sqlDepModel.index(0, 0);				//部门索引的第0行第0列
+		signIndex = sqlDepModel.index(0, 1);						//0行1列
+		strWindowName = sqlDepModel.data(signIndex).toString();
+		strMsgLabel = sqlDepModel.data(indexDepIndex).toString();
+
+		talkwindow->setWindowName(strWindowName);				//窗口名称
+		talkwindowItem->setMsgLabelContent(strMsgLabel);			//左侧联系人文本显示
+		m_talkwindowshell->addTalkWindow(talkwindow, talkwindowItem, uid);
+
+		/*
 		switch (groupType)
 		{
 		case COMPANY:
@@ -108,6 +134,7 @@ void WindowManager::addNewTalkWindow(const QString& uid, GroupType groupType, co
 		}
 
 		m_talkwindowshell->addTalkWindow(talkwindow, talkwindowItem, groupType);
+		*/
 	}
 	else
 	{

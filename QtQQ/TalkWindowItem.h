@@ -10,7 +10,7 @@ class TalkWindowItem : public QWidget
 public:
 	TalkWindowItem(QWidget *parent = nullptr);
 	~TalkWindowItem();
-	void setHeadPixmap(const QString& pixmap);
+	void setHeadPixmap(const QPixmap& pixmap);
 	void setMsgLabelContent(const QString& msg);
 	QString getMsgLabelText();				//获取在跟谁聊天，返回字符串
 

@@ -11,7 +11,7 @@ class CCMainWindow : public BasicWindow
     Q_OBJECT
 
 public:
-    CCMainWindow(QWidget *parent = nullptr);
+    CCMainWindow(QString account,bool isAccountLogin,QWidget *parent = nullptr);
     ~CCMainWindow();
 
 public:
@@ -30,7 +30,7 @@ public:
 
     //传入部门ID
     //void addCompanyDeps(QTreeWidgetItem* pRootGroupItem, int DepID);
-    void addCompanyDeps(QTreeWidgetItem* pRootGroupItem, const QString& sDeps);
+    void addCompanyDeps(QTreeWidgetItem* pRootGroupItem, int DepID);
 
 private:
     //当窗口改变的时候，用户名前后要保持一致
@@ -45,7 +45,7 @@ private:
 
     //更新搜索框样式
     void updateSearchStyle();
-
+    QString getHeadPicturePath();
 private slots:
     void onAppIconClicked();            //更换皮肤
 
@@ -56,5 +56,7 @@ private slots:
 
 private:
     Ui::CCMainWindowClass ui;
-    QMap<QTreeWidgetItem*, QString> m_groupMap;     //所有分组的项
+    bool m_isAccountLogin;
+    QString m_account;      //登录账号或qq号
+    //QMap<QTreeWidgetItem*, QString> m_groupMap;     //所有分组的项
 };

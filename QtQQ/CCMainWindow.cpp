@@ -15,6 +15,15 @@
 #include <QTreeWidgetItem>
 #include <QMouseEvent>
 #include <QApplication>
+#include <QSqlQuery>
+#include <QSqlError>
+//声明一个外部变量
+extern QString gLoginEmployeeID;            //在UserLogin里面定义的gLoginEmployeeID
+//获取自己的头像
+QString gstrLoginHeadPath;
+
+//QString connectionString = "Driver={ODBC Driver};Server=127.0.0.1;Database=qtqq;Uid=root;Pwd=wcl62426327;";
+
 class CustomProxyStyle :public QProxyStyle
 {
 public:
@@ -35,12 +44,15 @@ public:
     }
 };
 
-CCMainWindow::CCMainWindow(QWidget *parent)
+CCMainWindow::CCMainWindow(QString account, bool isAccountLogin, QWidget *parent)
     : BasicWindow(parent)
+    ,m_isAccountLogin(isAccountLogin)
+    ,m_account(account)
 {
     ui.setupUi(this);
     setWindowFlags(windowFlags() | Qt::Tool);
     loadStyleSheet("CCMainWindow");
+    setHeadPixmap(getHeadPicturePath());  
     initControl();
     initTimer();
 }
@@ -49,9 +61,9 @@ void CCMainWindow::initControl()
 {
     //树获取焦点时不绘制边框
     ui.treeWidget->setStyle(new CustomProxyStyle);
-    setLevelPixmap(0);
-    setHeadPixmap(":/Resources/MainWindow/girl.png");
-    setStatusMenuIcon(":/Resources/MainWindow/StatusSucceeded.png");
+    setLevelPixmap(0);  // 设置等级图标
+    //setHeadPixmap(":/Resources/MainWindow/girl.png");   // 设置头像
+    setStatusMenuIcon(":/Resources/MainWindow/StatusSucceeded.png");    // 设置状态图标
 
     //注意下面两种设置addWidget的方法，
     // 第一种是 Icons 都打包到appupLayout，然后再放到ui.appWidget里面
@@ -66,7 +78,7 @@ void CCMainWindow::initControl()
     appupLayout->addWidget(addOtherAppExtension(":/Resources/MainWindow/app/app_5.png", "app_5"));
     appupLayout->addWidget(addOtherAppExtension(":/Resources/MainWindow/app/app_6.png", "app_6"));
     appupLayout->addWidget(addOtherAppExtension(":/Resources/MainWindow/app/skin.png", "app_skin"));
-    appupLayout->addStretch();
+    appupLayout->addStretch();      // 添加弹性空间
     appupLayout->setSpacing(2);             //部件之间以2个像素的空位填充，显得更紧凑
     //设置布局
     ui.appWidget->setLayout(appupLayout);
@@ -218,97 +230,291 @@ QWidget* CCMainWindow::addOtherAppExtension(const QString& appPath, const QStrin
     return btn;
 }
 
-void CCMainWindow::initContactTree()
-{
-    //展开与收缩时的信号
-    //（QTreeWidgetItem*,int）,点击的是哪一项，哪一列
-    //点击
+//void CCMainWindow::initContactTree()              //原版错误代码
+//{
+//    //展开与收缩时的信号
+//    //（QTreeWidgetItem*,int）,点击的是哪一项，哪一列
+//    //点击
+//    connect(ui.treeWidget, SIGNAL(itemClicked(QTreeWidgetItem*, int)), this, SLOT(onItemClicked(QTreeWidgetItem*, int)));
+//
+//    //点击，展开
+//    connect(ui.treeWidget, SIGNAL(itemExpanded(QTreeWidgetItem*)), this, SLOT(onItemExpanded(QTreeWidgetItem*)));
+//
+//    //点击，收缩
+//    connect(ui.treeWidget, SIGNAL(itemCollapsed(QTreeWidgetItem*)), this, SLOT(onItemCollapsed(QTreeWidgetItem*)));
+//
+//    //双击
+//    connect(ui.treeWidget, SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)), this, SLOT(onItemDoubleClicked(QTreeWidgetItem*, int)));
+//
+//    //根节点
+//    //pRootGroupItem,保存分组的根节点，群组
+//    QTreeWidgetItem* pRootGroupItem = new QTreeWidgetItem;
+//    //不管树里有没有子项，都永远进行展示
+//    pRootGroupItem->setChildIndicatorPolicy(QTreeWidgetItem::ShowIndicator);
+//    //设置根节点数据（第0列，使用角色，值）
+//    pRootGroupItem->setData(0, Qt::UserRole, 0);            //根项数据的值为0
+//    RootContactItem* pItemName = new RootContactItem(true, ui.treeWidget);
+//
+//    //获取公司部门ID
+//    //SELECT departmentID FROM tab_department WHERE department_name='ren1'
+//    QSqlQuery queryCompDepID(QString("SELECT departmentID FROM tab_department WHERE department_name='%1'").arg(QString::fromLocal8Bit("公司群")));
+//    queryCompDepID.exec();              //执行
+//    queryCompDepID.first();               //指向结果集的第一条
+//    int ComDepID = queryCompDepID.value(0).toInt();         //转换成int
+//
+//    //获取QQ登录者所在的部门ID（部门群号）
+//    //这里的传值，应该是传ID员工号
+//    //在用户登录的时候，登录成功后，保存登录者的账号，传到这里来
+//    //用一个 全局变量保存
+//    //SELECT departmentID FROM tab_employee WHRER employeeID =10001
+//    qDebug() << "Login Employee ID: " << gLoginEmployeeID;
+//
+//    QSqlQuery querySelfDepID(QString("SELECT departmentID FROM tab_employees WHERE employeeID=%1").arg(gLoginEmployeeID));
+//    querySelfDepID.exec();          //执行
+//    querySelfDepID.first();         //指向结果集的第一条
+//    int SelfDepID = querySelfDepID.value(0).toInt();        //转换成int
+//
+//    //初始化公司群和登录者所在群
+//    addCompanyDeps(pRootGroupItem, ComDepID);           //传入公司群ID
+//    addCompanyDeps(pRootGroupItem, SelfDepID);              //传入自己所在群的ID
+//
+//    QString strGroupName = QString::fromLocal8Bit("武林进行曲");
+//    pItemName->setText(strGroupName);
+//
+//    //插入分组节点
+//    //添加顶级项
+//    ui.treeWidget->addTopLevelItem(pRootGroupItem);
+//
+//    //添加项的部件,根节点是pRootGroupItem,第0列
+//    //第三个参数，设置的部件
+//    ui.treeWidget->setItemWidget(pRootGroupItem, 0, pItemName);
+//
+//}
+
+void CCMainWindow::initContactTree() {
+    // 展开与收缩时的信号
+    //（QTreeWidgetItem*,int），点击的是哪一项，哪一列
+    // 点击
     connect(ui.treeWidget, SIGNAL(itemClicked(QTreeWidgetItem*, int)), this, SLOT(onItemClicked(QTreeWidgetItem*, int)));
 
-    //点击，展开
+    // 点击，展开
     connect(ui.treeWidget, SIGNAL(itemExpanded(QTreeWidgetItem*)), this, SLOT(onItemExpanded(QTreeWidgetItem*)));
 
-    //点击，收缩
+    // 点击，收缩
     connect(ui.treeWidget, SIGNAL(itemCollapsed(QTreeWidgetItem*)), this, SLOT(onItemCollapsed(QTreeWidgetItem*)));
 
-    //双击
+    // 双击
     connect(ui.treeWidget, SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)), this, SLOT(onItemDoubleClicked(QTreeWidgetItem*, int)));
 
-    //根节点
-    //pRootGroupItem,保存分组的根节点，群组
+    // 根节点
+    // pRootGroupItem，保存分组的根节点，群组
     QTreeWidgetItem* pRootGroupItem = new QTreeWidgetItem;
-
-    //不管树里有没有子项，都永远进行展示
+    // 不管树里有没有子项，都永远进行展示
     pRootGroupItem->setChildIndicatorPolicy(QTreeWidgetItem::ShowIndicator);
-    ////设置根节点数据（第0列，使用角色，值）
-    pRootGroupItem->setData(0, Qt::UserRole, 0);            //根项数据的值为0
-
+    // 设置根节点数据（第0列，使用角色，值）
+    pRootGroupItem->setData(0, Qt::UserRole, 0); // 根项数据的值为0
     RootContactItem* pItemName = new RootContactItem(true, ui.treeWidget);
 
-    ////获取公司部门ID
-    ////SELECT departmentID FROM tab_department WHERE department_name='ren1'
-    //QSqlQuery queryCompDepID(QString("SELECT departmentID FROM tab_deparment WHERE deparment_name='%1'").arg(QString::fromLocal8Bit("公司群")));
-    //queryCompDepID.exec();              //执行
-    //queryCompDepID.first();               //指向结果集的第一条
-    //int ComDepID = queryCompDepID.value(0).toInt();         //转换成int
+    // 获取公司部门ID
+    // SELECT departmentID FROM tab_department WHERE department_name='公司群'
+    QSqlQuery queryCompDepID;
+    queryCompDepID.prepare("SELECT departmentID FROM tab_department WHERE department_name = :department_name");
+    queryCompDepID.bindValue(":department_name", QString::fromLocal8Bit("公司群"));
+    queryCompDepID.exec();              // 执行
+    queryCompDepID.first();             // 指向结果集的第一条
+    int ComDepID = queryCompDepID.value(0).toInt(); // 转换成int
 
-    ////获取QQ登录者所在的部门ID（部门群号）
-    ////这里的传值，应该是传ID员工号
-    ////在用户登录的时候，登录成功后，保存登录者的账号，传到这里来
-    ////用一个 全局变量保存
-    ////SELECT departmentID FROM tab_employee WHRER employeeID =10001
-    //QSqlQuery querySelfDepID(QString("SELECT deparmentID FROM tab_employee WHERE employeeID=%1").arg(gLoginEmployeeID));
-    //querySelfDepID.exec();          //执行
-    //querySelfDepID.first();         //指向结果集的第一条
-    //int SelfDepID = querySelfDepID.value(0).toInt();        //转换成int
+    // 获取QQ登录者所在的部门ID（部门群号）
+    // 这里的传值，应该是传ID员工号
+    // 在用户登录的时候，登录成功后，保存登录者的账号，传到这里来
+    // 用一个 全局变量保存
+    // SELECT departmentID FROM tab_employee WHERE employeeID = 10001
+    qDebug() << "Login Employee ID: " << gLoginEmployeeID;
 
-    ////初始化公司群和登录者所在群
-    //addCompanyDeps(pRootGroupItem, ComDepID);           //传入公司群ID
-    //addCompanyDeps(pRootGroupItem, SelfDepID);              //传入自己所在群的ID
+    QSqlQuery querySelfDepID;
+    querySelfDepID.prepare("SELECT departmentID FROM tab_employees WHERE employeeID = :employeeID");
+    querySelfDepID.bindValue(":employeeID", gLoginEmployeeID);
+    querySelfDepID.exec();          // 执行
+    querySelfDepID.first();         // 指向结果集的第一条
+    int SelfDepID = querySelfDepID.value(0).toInt(); // 转换成int
+
+    // 初始化公司群和登录者所在群
+    addCompanyDeps(pRootGroupItem, ComDepID); // 传入公司群ID
+    addCompanyDeps(pRootGroupItem, SelfDepID); // 传入自己所在群的ID
 
     QString strGroupName = QString::fromLocal8Bit("武林进行曲");
     pItemName->setText(strGroupName);
 
-    ////插入分组节点
-    ////添加顶级项
+    // 插入分组节点
+    // 添加顶级项
     ui.treeWidget->addTopLevelItem(pRootGroupItem);
 
-    ////添加项的部件,根节点是pRootGroupItem,第0列
-    ////第三个参数，设置的部件
+    // 添加项的部件，根节点是pRootGroupItem，第0列
+    // 第三个参数，设置的部件
     ui.treeWidget->setItemWidget(pRootGroupItem, 0, pItemName);
-
-    QStringList sCompDeps;      //公司部门
-    sCompDeps << QString::fromLocal8Bit("公司群");
-    sCompDeps << QString::fromLocal8Bit("人事部");
-    sCompDeps << QString::fromLocal8Bit("研发部");
-    sCompDeps << QString::fromLocal8Bit("市场部");
-    
-    for (int nIndex = 0; nIndex < sCompDeps.length(); nIndex++)
-    {
-        addCompanyDeps(pRootGroupItem, sCompDeps.at(nIndex));
-    }
 }
 
-void CCMainWindow::addCompanyDeps(QTreeWidgetItem* pRootGroupItem, const QString& sDeps)
-{
+
+//void CCMainWindow::initContactTree()                //正确运行代码
+//{
+//    //展开与收缩时的信号
+//    //（QTreeWidgetItem*,int）,点击的是哪一项，哪一列
+//    //点击
+//    connect(ui.treeWidget, SIGNAL(itemClicked(QTreeWidgetItem*, int)), this, SLOT(onItemClicked(QTreeWidgetItem*, int)));
+//
+//    //点击，展开
+//    connect(ui.treeWidget, SIGNAL(itemExpanded(QTreeWidgetItem*)), this, SLOT(onItemExpanded(QTreeWidgetItem*)));
+//
+//    //点击，收缩
+//    connect(ui.treeWidget, SIGNAL(itemCollapsed(QTreeWidgetItem*)), this, SLOT(onItemCollapsed(QTreeWidgetItem*)));
+//
+//    //双击
+//    connect(ui.treeWidget, SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)), this, SLOT(onItemDoubleClicked(QTreeWidgetItem*, int)));
+//
+//    //根节点
+//    //pRootGroupItem,保存分组的根节点，群组
+//    QTreeWidgetItem* pRootGroupItem = new QTreeWidgetItem;
+//    //不管树里有没有子项，都永远进行展示
+//    pRootGroupItem->setChildIndicatorPolicy(QTreeWidgetItem::ShowIndicator);
+//    //设置根节点数据（第0列，使用角色，值）
+//    pRootGroupItem->setData(0, Qt::UserRole, 0);            //根项数据的值为0
+//    RootContactItem* pItemName = new RootContactItem(true, ui.treeWidget);
+//
+//    int ComDepID = 0; // 初始化公司部门ID
+//    int SelfDepID = 0; // 初始化登录者所在部门ID
+//
+//    // 获取公司部门ID
+//    QSqlQuery queryCompDepID;
+//    queryCompDepID.prepare("SELECT departmentID FROM tab_department WHERE department_name = :department_name");
+//    queryCompDepID.bindValue(":department_name", QString::fromLocal8Bit("公司群"));
+//    if (queryCompDepID.exec()) {
+//        if (queryCompDepID.first()) {
+//            ComDepID = queryCompDepID.value(0).toInt();  // 转换成int
+//            qDebug() << "Company Department ID: " << ComDepID;
+//        }
+//        else {
+//            qDebug() << "No department found for '公司群'.";
+//        }
+//    }
+//    else {
+//        qDebug() << "Error executing query for company department: " << queryCompDepID.lastError().text();
+//    }
+//
+//    // 获取QQ登录者所在的部门ID（部门群号）
+//    qDebug() << "Login Employee ID: " << gLoginEmployeeID;
+//    QSqlQuery querySelfDepID;
+//    querySelfDepID.prepare("SELECT departmentID FROM tab_employees WHERE employeeID = :employeeID");
+//    querySelfDepID.bindValue(":employeeID", gLoginEmployeeID);
+//    if (querySelfDepID.exec()) {
+//        if (querySelfDepID.first()) {
+//            SelfDepID = querySelfDepID.value(0).toInt();  // 转换成int
+//            qDebug() << "Self Department ID: " << SelfDepID;
+//        }
+//        else {
+//            qDebug() << "No department found for employee ID: " << gLoginEmployeeID;
+//        }
+//    }
+//    else {
+//        qDebug() << "Error executing query for employee department: " << querySelfDepID.lastError().text();
+//    }
+//
+//    // 初始化公司群和登录者所在群
+//    addCompanyDeps(pRootGroupItem, ComDepID);           // 传入公司群ID
+//    addCompanyDeps(pRootGroupItem, SelfDepID);          // 传入自己所在群的ID
+//
+//    QString strGroupName = QString::fromLocal8Bit("武林进行曲");
+//    pItemName->setText(strGroupName);
+//
+//    //插入分组节点
+//    //添加顶级项
+//    ui.treeWidget->addTopLevelItem(pRootGroupItem);
+//
+//    //添加项的部件,根节点是pRootGroupItem,第0列
+//    //第三个参数，设置的部件
+//    ui.treeWidget->setItemWidget(pRootGroupItem, 0, pItemName);
+//}
+
+
+
+
+//void CCMainWindow::addCompanyDeps(QTreeWidgetItem* pRootGroupItem, int DepID)                 //原版错误代码
+//{
+//    QTreeWidgetItem* pChild = new QTreeWidgetItem;
+//    
+//    QPixmap pix;
+//    pix.load(":/Resources/MainWindow/head_mask.png");
+//
+//    //添加子节点
+//    pChild->setData(0, Qt::UserRole, 1);            //子项数据设为1
+//    pChild->setData(0, Qt::UserRole + 1, DepID);
+//
+//    //获取公司、部门头像
+//    QPixmap groupPix;
+//    QSqlQuery queryPicture(QString("SELECT picture FROM tab_department WHERE departmentID = %1").arg(DepID));
+//    queryPicture.exec();
+//
+//    queryPicture.first();
+//    groupPix.load(queryPicture.value(0).toString());
+//
+//
+//
+//    //获取部门名称
+//    QString strDepName;
+//    QSqlQuery querDepName(QString("SELECT department_name FROM tab_department WHERE departmentID =%1").arg(DepID));
+//    querDepName.exec();
+//    querDepName.first();
+//    strDepName = querDepName.value(0).toString();
+//
+//    ContactItem* pContactItem = new ContactItem(ui.treeWidget);
+//    pContactItem->setHeadPixmap(getRoundImage(groupPix,pix,pContactItem->getHeadLabelSize()));
+//    pContactItem->setUserName(strDepName);
+//
+//    pRootGroupItem->addChild(pChild);
+//    ui.treeWidget->setItemWidget(pChild, 0, pContactItem);
+//
+//    //m_groupMap.insert(pChild, sDeps);
+//}
+
+void CCMainWindow::addCompanyDeps(QTreeWidgetItem* pRootGroupItem, int DepID) {
     QTreeWidgetItem* pChild = new QTreeWidgetItem;
-    
+
     QPixmap pix;
     pix.load(":/Resources/MainWindow/head_mask.png");
 
-    //添加子节点
-    pChild->setData(0, Qt::UserRole, 1);            //子项数据设为1
-    pChild->setData(0, Qt::UserRole + 1, QString::number((int)pChild));
+    // 添加子节点数据
+    pChild->setData(0, Qt::UserRole, true);          // 子项标记为 true
+    pChild->setData(0, Qt::UserRole + 1, DepID);     // 存储部门ID
 
+    // 获取公司/部门头像
+    QPixmap groupPix(":/Resources/MainWindow/default_avatar.png"); // 默认头像
+    QSqlQuery queryPicture;
+    queryPicture.prepare("SELECT picture FROM tab_department WHERE departmentID = :DepID");
+    queryPicture.bindValue(":DepID", DepID);
+    queryPicture.exec();
+    queryPicture.first();
+    groupPix.load(queryPicture.value(0).toString()); // 加载图片路径
+
+    // 获取部门名称
+    QString strDepName = "Unknown Department";
+    QSqlQuery queryDepName;
+    queryDepName.prepare("SELECT department_name FROM tab_department WHERE departmentID = :DepID");
+    queryDepName.bindValue(":DepID", DepID);
+    queryDepName.exec();
+    queryDepName.first();
+    strDepName = queryDepName.value(0).toString(); // 获取部门名称
+
+    // 创建联系人项并设置头像和名称
     ContactItem* pContactItem = new ContactItem(ui.treeWidget);
-    pContactItem->setHeadPixmap(getRoundImage(QPixmap(":/Resources/MainWindow/girl.png"),pix,pContactItem->getHeadLabelSize()));
-    pContactItem->setUserName(sDeps);
+    pContactItem->setHeadPixmap(getRoundImage(groupPix, pix, pContactItem->getHeadLabelSize()));
+    pContactItem->setUserName(strDepName);
 
+    // 添加子节点到树结构
     pRootGroupItem->addChild(pChild);
     ui.treeWidget->setItemWidget(pChild, 0, pContactItem);
-
-    m_groupMap.insert(pChild, sDeps);
 }
+
+
+
 
 void CCMainWindow::resizeEvent(QResizeEvent* event)
 {
@@ -376,6 +582,75 @@ void CCMainWindow::updateSearchStyle()
                                                                         .arg(m_colorBackGround.blue()));
 }
 
+//QString CCMainWindow::getHeadPicturePath()            //原版错误代码
+//{
+//    QString strPicturePath;
+//
+//    if (!m_isAccountLogin)               //QQ号登录
+//    {
+//        QSqlQuery queryPicture(QString("SELECT picture FROM tab_employees WHERE employeeID = %1").arg(gLoginEmployeeID));
+//        queryPicture.exec();
+//        queryPicture.next();
+//
+//        strPicturePath = queryPicture.value(0).toString();
+//    }
+//    else            //账号登录
+//    {
+//        QSqlQuery queryEmployeeID(QString("SELECT employeeID FROM tab_accounts WHERE account = '%1'").arg(m_account));
+//        queryEmployeeID.exec();
+//        queryEmployeeID.next();
+//
+//        int employeeID = queryEmployeeID.value(0).toInt();
+//
+//        QSqlQuery queryPicture(QString("SELECT picture FROM tab_employees WHERE employeeID = %1").arg(employeeID));
+//        queryPicture.exec();
+//        queryPicture.next();
+//
+//        strPicturePath = queryPicture.value(0).toString();
+//    }
+//
+//    //gstrLoginHeadPath = strPicturePath;
+//    return strPicturePath;
+//}
+
+
+QString CCMainWindow::getHeadPicturePath() {
+    QString strPicturePath = ":/Resources/MainWindow/default_avatar.png";  // 默认头像
+
+    if (!m_isAccountLogin) {  // QQ号登录
+        QSqlQuery queryPicture;
+        queryPicture.prepare("SELECT picture FROM tab_employees WHERE employeeID = :employeeID");
+        queryPicture.bindValue(":employeeID", gLoginEmployeeID);
+        queryPicture.exec();
+        queryPicture.next();
+
+        strPicturePath = queryPicture.value(0).toString();
+    }
+    else {  // 账号登录
+        QSqlQuery queryEmployeeID;
+        queryEmployeeID.prepare("SELECT employeeID FROM tab_accounts WHERE account = :account");
+        queryEmployeeID.bindValue(":account", m_account);
+        queryEmployeeID.exec();
+        queryEmployeeID.next();
+
+        int employeeID = queryEmployeeID.value(0).toInt();
+
+        QSqlQuery queryPicture;
+        queryPicture.prepare("SELECT picture FROM tab_employees WHERE employeeID = :employeeID");
+        queryPicture.bindValue(":employeeID", employeeID);
+        queryPicture.exec();
+        queryPicture.next();
+
+        strPicturePath = queryPicture.value(0).toString();
+    }
+
+    return strPicturePath;
+}
+
+
+
+
+//联系人树点击事件
 void CCMainWindow::onItemClicked(QTreeWidgetItem* item, int column)
 {
     //判断，是否有子项
@@ -425,6 +700,7 @@ void CCMainWindow::onItemCollapsed(QTreeWidgetItem* item)
     }
 }
 
+//联系人树双击事件
 void CCMainWindow::onItemDoubleClicked(QTreeWidgetItem* item, int column)
 {
     //判断双击的事根项，还是子项
@@ -432,8 +708,10 @@ void CCMainWindow::onItemDoubleClicked(QTreeWidgetItem* item, int column)
     bool blsChild = item->data(0, Qt::UserRole).toBool();
     if (blsChild)
     {
-        QString strGroup = m_groupMap.value(item);
-
+        //添加新的聊天窗口
+        WindowManager::getInstance()->addNewTalkWindow(item->data(0, Qt::UserRole + 1).toString());
+        //QString strGroup = m_groupMap.value(item);
+/*
         if (strGroup == QString::fromLocal8Bit("公司群"))
         {
             //添加新的聊天窗口
@@ -451,6 +729,7 @@ void CCMainWindow::onItemDoubleClicked(QTreeWidgetItem* item, int column)
         {
             WindowManager::getInstance()->addNewTalkWindow(item->data(0, Qt::UserRole + 1).toString(), DEVELOPMENTGROUP);
         }
+*/
     }
 }
 
