@@ -16,7 +16,7 @@ public:
 
 public:
     void initControl();
-    void initTimer();
+    void initTimer();           //初始化计时器
     void setUserName(const QString& username);      //设置用户名
     void setLevelPixmap(int level);                                 //设置等级图片
     void setHeadPixmap(const QString& headPath);    //设置头像路径

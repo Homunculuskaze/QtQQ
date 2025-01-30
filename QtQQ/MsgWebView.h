@@ -16,8 +16,8 @@ class MsgHtmlObj :public QObject
 
 public:
 	//msgLPicPath，发信息来的人的头像路径
-	//MsgHtmlObj(QObject* parent, QString msgLPocPath = "");
-	MsgHtmlObj(QObject* parent);
+	MsgHtmlObj(QObject* parent, QString msgLPicPath = "");
+	//MsgHtmlObj(QObject* parent);
 
 signals:
 	void signalMsgHtml(const QString& html);
@@ -67,9 +67,7 @@ public:
 	//external0 external_xxx
 	//如果是自己发消息，则默认为0
 	//如果不是，则传QQ，然后再拼接
-	//void appendMsg(const QString& html,QString strObj="0");
-	void appendMsg(const QString& html);
-
+	void appendMsg(const QString& html,QString strObj="0");
 private:
 	QList<QStringList> parseHtml(const QString& html);	//解析html
 	//Qt中所有DOM节点（属性、说明、文本等）都可以使用QDomNode进行表示

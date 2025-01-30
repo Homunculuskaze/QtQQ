@@ -17,9 +17,12 @@ public:
 	void addWindowName(const QString& qsWindowName, QWidget* qWidget);
 
 	static WindowManager* getInstance();
+	TalkWindowShell* getTalkWindowShell();
+	QString getCreatingTalkId();
 	void addNewTalkWindow(const QString& uid/*, GroupType groupType = COMPANY, const QString strPeople = ""*/);
 
 private:
 	TalkWindowShell* m_talkwindowshell;
 	QMap<QString, QWidget*>m_windowMap;
+	QString m_strCreatingTalkId = "";					//正在创建的聊天窗口(QQ号)
 };

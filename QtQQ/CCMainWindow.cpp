@@ -567,7 +567,7 @@ void CCMainWindow::mousePressEvent(QMouseEvent* event)
     {
         ui.lineEdit->clearFocus();
     }
-
+     
     //其它的，进行基础的事件的处理
     BasicWindow::mousePressEvent(event);
 }
@@ -615,7 +615,8 @@ void CCMainWindow::updateSearchStyle()
 
 
 QString CCMainWindow::getHeadPicturePath() {
-    QString strPicturePath = ":/Resources/MainWindow/default_avatar.png";  // 默认头像
+    //QString strPicturePath = ":/Resources/MainWindow/default_avatar.png";  // 默认头像
+    QString strPicturePath;
 
     if (!m_isAccountLogin) {  // QQ号登录
         QSqlQuery queryPicture;
@@ -643,6 +644,8 @@ QString CCMainWindow::getHeadPicturePath() {
 
         strPicturePath = queryPicture.value(0).toString();
     }
+
+    gstrLoginHeadPath = strPicturePath;
 
     return strPicturePath;
 }
@@ -706,6 +709,13 @@ void CCMainWindow::onItemDoubleClicked(QTreeWidgetItem* item, int column)
     //判断双击的事根项，还是子项
     //data（0列，角色），再转换成bool类型
     bool blsChild = item->data(0, Qt::UserRole).toBool();
+
+    //添加的
+    QString idToOpen = item->data(0, Qt::UserRole + 1).toString();
+    qDebug() << "DoubleClicked. child?" << blsChild << "ID:" << idToOpen;
+    WindowManager::getInstance()->addNewTalkWindow(idToOpen);
+
+
     if (blsChild)
     {
         //添加新的聊天窗口

@@ -4,6 +4,9 @@
 
 #include <QSqlQueryModel>
 //单例模式，创建全局静态对象
+//Q_GLOBAL_STATIC(Type, name);
+// Type 是对象的类型，在你的代码中是 WindowManager
+//name 是全局静态对象的名字，在你的代码中是 theInstance
 Q_GLOBAL_STATIC(WindowManager, theInstance);
 
 
@@ -15,7 +18,7 @@ WindowManager::WindowManager()
 WindowManager::~WindowManager()
 {}
 
-QWidget* WindowManager::findWindowName(const QString & qsWindowName)
+QWidget* WindowManager::findWindowName(const QString & qsWindowName)		//QMap<QString, QWidget*>m_windowMap;根据qsWindowName得到对应窗口
 {
 	//根据传进来的窗口名称，来做判断
 	//映射中，如果包含传进来的窗体
@@ -52,6 +55,16 @@ WindowManager* WindowManager::getInstance()
 	return theInstance();
 }
 
+TalkWindowShell* WindowManager::getTalkWindowShell()
+{
+	return m_talkwindowshell;
+}
+
+QString WindowManager::getCreatingTalkId()
+{
+	return m_strCreatingTalkId;
+}
+
 void WindowManager::addNewTalkWindow(const QString& uid/*, GroupType groupType, const QString strPeople*/)
 {
 	if (m_talkwindowshell == nullptr)
@@ -70,9 +83,12 @@ void WindowManager::addNewTalkWindow(const QString& uid/*, GroupType groupType, 
 
 	if (!widget)
 	{
+		m_strCreatingTalkId = uid;
 		TalkWindow* talkwindow = new TalkWindow(m_talkwindowshell, uid/*, groupType*/);
 		TalkWindowItem* talkwindowItem = new TalkWindowItem(talkwindow);
 
+		m_strCreatingTalkId = "";
+		
 		//判断是群聊还是单聊
 		QSqlQueryModel sqlDepModel;
 		QString strSql = QString("SELECT department_name,sign FROM tab_department WHERE departmentID = %1").arg(uid);

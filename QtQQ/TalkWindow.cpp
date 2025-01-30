@@ -6,6 +6,8 @@
 #include <QToolTip>
 #include <QFile>
 #include <QMessageBox>
+#include <QSqlQueryModel>
+#include <QSqlQuery>
 TalkWindow::TalkWindow(QWidget* parent , const QString& uid/*, GroupType groupType*/)
 	: QWidget(parent)
 	,m_talkId(uid)
@@ -14,6 +16,9 @@ TalkWindow::TalkWindow(QWidget* parent , const QString& uid/*, GroupType groupTy
 	ui.setupUi(this);
 	WindowManager::getInstance()->addWindowName(m_talkId, this);
 	setAttribute(Qt::WA_DeleteOnClose);
+
+	//在初始化控件之前，初始化状态，否则群聊状态永远都是false
+	initGroupTalkStatus();
 	initControl();
 }
 
@@ -35,18 +40,36 @@ void TalkWindow::setWindowName(const QString& name)
 	ui.nameLabel->setText(name);
 }
 
+QString TalkWindow::getTalkId()
+{
+	return m_talkId;
+}
+
+// ========== 新增：setTalkId ========== 在talkwindowshell使用过
+void TalkWindow::setTalkId(const QString& newId)
+{
+	// 先把旧 ID 从 WindowManager 中移除（若你希望覆盖旧键）
+	WindowManager::getInstance()->deleteWindowName(m_talkId);
+
+	// 更新成员变量
+	m_talkId = newId;
+
+	// 重新注册到 WindowManager，保持一致
+	WindowManager::getInstance()->addWindowName(m_talkId, this);
+}
+
 void TalkWindow::onItemDoubleClicked(QTreeWidgetItem* item, int column)
 {
 	bool bIsChild=item->data(0, Qt::UserRole).toBool();
 	if (bIsChild)
 	{
-		QString strPeppleName = m_groupPeopleMap.value(item);
+		//QString strPeppleName = m_groupPeopleMap.value(item);
 		WindowManager::getInstance()->addNewTalkWindow(item->data(0, Qt::UserRole + 1).toString()/*, PTOP, strPeppleName*/);
 	}
 }
 
 
-
+/*
 void TalkWindow::initComPanyTalk()
 {
 	//先构造根项
@@ -212,6 +235,101 @@ void TalkWindow::initMarketTalk()
 		addPeopInfo(pRootItem);
 	}
 }
+*/
+
+void TalkWindow::initTalkWindow()
+{
+	//先构造根项
+	QTreeWidgetItem* pRootItem = new QTreeWidgetItem();
+
+
+	//接下来，设置孩子，指示器的策略
+	//指示器设置的策略，不管这个子项有没有存在，
+	//这个指示器都会存在，都可以用于收缩
+	pRootItem->setChildIndicatorPolicy(QTreeWidgetItem::ShowIndicator);
+
+	//开始设置数据
+	pRootItem->setData(0, Qt::UserRole, 0);			//参数（第0列，用户，数据设置为0）
+
+	//构造根项
+	//第一个参数，是否需要箭头，不需要就写false
+	//第二个参数，让树，作为他的父部件
+	RootContactItem* pItemName = new RootContactItem(false, ui.treeWidget);
+
+	ui.treeWidget->setFixedHeight(646);				//设置Shell高度减去shell头高（talkwindow titleWidget）
+
+	//获取群的名称
+	QString strGroupName;
+	//查询分组名称/////////////////////自己弄的prepare和bind
+	//QSqlQuery queryGroupName(QString("SELECT department_name FROM tab_department WHERE departmentID = %1").arg(m_talkId));
+	QSqlQuery queryGroupName;
+	queryGroupName.prepare("SELECT department_name FROM tab_department WHERE departmentID = :talkID");
+	queryGroupName.bindValue(":talkID", m_talkId);
+	queryGroupName.exec();
+
+	if (queryGroupName.next())
+	{
+		strGroupName = queryGroupName.value(0).toString();
+	}
+
+
+
+
+	/*
+		如果不是公司群，就要进行筛选
+		在员工表里面，想查一下人事部，有几个员工，
+		只要进行departmentID等于人事部的ID，进行筛选
+
+		如果是2000(公司群)的时候，就要进行特殊处理
+		那就将员工表里面的数据，全部拿过来，直接 select * 全部选择
+		在根据departmentID，进行筛选
+	*/
+	//先获取群号，再与m_talkID进行比对
+	QSqlQueryModel queryEmployeeModel;
+
+
+	qDebug() << "m_talkId: " << m_talkId.toInt() << ", Company Department ID: " << getCompDepID();
+
+
+	//如果是一样的，那就是公司群
+	if (getCompDepID() == m_talkId.toInt())
+	{
+		//查询，状态为1
+		queryEmployeeModel.setQuery("SELECT employeeID FROM tab_employees WHERE status =1");
+	}
+	else
+	{	//如果不是公司群，通过公司群号，进行过滤
+		queryEmployeeModel.setQuery(QString("SELECT employeeID FROM tab_employees WHERE status =1 AND departmentID = %1").arg(m_talkId));
+	}
+
+	//获取到当前员工的数量
+	int nEmployeeNum = queryEmployeeModel.rowCount();
+
+	//群聊名字，在线人数是多少，员工数量
+	QString qsGroupName = QString::fromUtf8("%1 %2/%3").arg(strGroupName).arg(0).arg(nEmployeeNum);
+
+	//将qsGroupName这个文本设置为当前项pItemName的文本
+	pItemName->setText(qsGroupName);
+
+	//插入分组节点
+	ui.treeWidget->addTopLevelItem(pRootItem);				//添加最上面的一项，就添加一项
+	//设置项目部件(对根项pRootItem设置，第0列，设置它的部件是pItemName)
+	ui.treeWidget->setItemWidget(pRootItem, 0, pItemName);
+
+	//将所有的子项，默认展开
+	pRootItem->setExpanded(true);
+
+	//添加子项
+	for (int i = 0; i < nEmployeeNum; i++)
+	{
+		//查询员工模型索引，获取员工QQ号
+		QModelIndex modelIndex = queryEmployeeModel.index(i, 0);
+		int employeeID = queryEmployeeModel.data(modelIndex).toInt();
+
+		//传入员工ID，这样每次添加的员工都是独一无二的
+		addPeopInfo(pRootItem, employeeID);
+	}
+}
 
 void TalkWindow::initPtoPTalk()
 {
@@ -229,26 +347,40 @@ void TalkWindow::initPtoPTalk()
 	skinLabel->setFixedSize(ui.widget->size());
 }
 
-void TalkWindow::addPeopInfo(QTreeWidgetItem* pRootGroupItem)
+void TalkWindow::addPeopInfo(QTreeWidgetItem* pRootGroupItem, int employeeID)
 {
 	//
 	QTreeWidgetItem* pChild = new QTreeWidgetItem();
 
-	QPixmap pix1;
-	pix1.load(":/Resources/MainWindow/head_mask.png");
-	//QImage image(":/Resources/MainWindow/girl.png");
-	const QPixmap image(":/Resources/MainWindow/girl.png");
-
 	//添加子节点
 	pChild->setData(0, Qt::UserRole, 1);
-	pChild->setData(0, Qt::UserRole + 1, QString::number((int)pChild));
+	pChild->setData(0, Qt::UserRole + 1, employeeID);
 	ContactItem* pContactItem = new ContactItem(ui.treeWidget);
 
-	static int i = 0;
-	pContactItem->setHeadPixmap(CommonUtils::getRoundImage(image, pix1, pContactItem->getHeadLabelSize()));
+	QPixmap pix1;
+	pix1.load(":/Resources/MainWindow/head_mask.png");
+	
+	//获取名、签名、头像
+	QString strName, strSign, strPicturePath;
+	QSqlQueryModel queryInfoModel;
+	queryInfoModel.setQuery(QString("SELECT employee_name,employee_sign,picture FROM tab_employees WHERE employeeID = %1").arg(employeeID));
+	QModelIndex nameIndex, signIndex, pictureIndex;
+	nameIndex = queryInfoModel.index(0, 0);		//行，列
+	signIndex = queryInfoModel.index(0, 0);
+	signIndex = queryInfoModel.index(0, 1);
+	pictureIndex = queryInfoModel.index(0, 2);
+
+	strName = queryInfoModel.data(nameIndex).toString();
+	strSign = queryInfoModel.data(signIndex).toString();
+	strPicturePath = queryInfoModel.data(pictureIndex).toString();
+
+	QImage imageHead;
+	imageHead.load(strPicturePath);
+
+	pContactItem->setHeadPixmap(CommonUtils::getRoundImage(QPixmap::fromImage(imageHead), pix1, pContactItem->getHeadLabelSize()));
 	//pContactItem->setUserName(QString::fromLocal8Bit("奇奇%1").arg(i++));
-	pContactItem->setUserName(QString::fromUtf8("奇奇%1").arg(i++));
-	pContactItem->setSignName(QString::fromLocal8Bit(""));
+	pContactItem->setUserName(strName);
+	pContactItem->setSignName(strSign);
 
 	pRootGroupItem->addChild(pChild);
 	ui.treeWidget->setItemWidget(pChild, 0, pContactItem);
@@ -346,6 +478,16 @@ void TalkWindow::initControl()
 	connect(ui.treeWidget, SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)),
 		this, SLOT(onItemDoubleClicked(QTreeWidgetItem*, int)));
 
+	if (m_isGroupTalk)
+	{
+		initTalkWindow();
+	}
+	else
+	{
+		initPtoPTalk();
+	}
+
+
 	/*
 	//初始化结束，开始做判断
 	switch (m_groupType)
@@ -377,4 +519,36 @@ void TalkWindow::initControl()
 		}
 	}
 	*/
+}
+
+void TalkWindow::initGroupTalkStatus()
+{
+	QSqlQueryModel sqlDepModel;
+	//SELECT * FROM tab_department WHERE departmentID = 2001
+	QString strSql = QString("SELECT * FROM tab_department WHERE departmentID = %1").arg(m_talkId);
+
+	sqlDepModel.setQuery(strSql);
+
+	int rows = sqlDepModel.rowCount();			//返回总共的模型行号
+
+	//==0为单聊
+	if (rows == 0)
+	{
+		m_isGroupTalk = false;
+	}
+	else
+	{
+		m_isGroupTalk = true;
+	}
+}
+
+int TalkWindow::getCompDepID()
+{
+	QSqlQuery queryDepID;
+	//在使用 QSqlQuery 的 prepare 和 bindValue 方法时，Qt 会自动处理字符串的引号问题，你不需要手动在 SQL 查询中加单引号
+	queryDepID.prepare("SELECT departmentID FROM tab_department WHERE department_name = :department_name");
+	queryDepID.bindValue(":department_name", QString::fromUtf8("公司群"));			//这里不能用QString::fromLocal8Bit("公司群")否则会返回0，只能用fromUtf8
+	queryDepID.exec();
+	queryDepID.next();				//调用queryDepID.first();也行
+	return queryDepID.value(0).toInt();
 }

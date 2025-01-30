@@ -1,24 +1,85 @@
-#include "MsgWebView.h"
-
+ï»¿#include "MsgWebView.h"
+#include "TalkWindowShell.h"
+#include "WindowManager.h"
 #include <QFile>
 #include <QMessageBox>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QWebChannel>
-MsgHtmlObj::MsgHtmlObj(QObject* parent) :QObject(parent)
+#include <QSqlQueryModel>
+#include <QFileInfo>
+extern QString gstrLoginHeadPath;
+MsgHtmlObj::MsgHtmlObj(QObject* parent,QString msgLPicPath) :QObject(parent)
 {
+	m_msgLPicPath = msgLPicPath;
 	initHtmlTmpl();
 }
 
-void MsgHtmlObj::initHtmlTmpl()
-{
-	m_msgLHtmlTmpl = getMsgTmplHtml("msgleftTmpl");
-	m_msgRHtmlTmpl = getMsgTmplHtml("msgrightTmpl");
+//void MsgHtmlObj::initHtmlTmpl()				//åŸç‰ˆ
+//{
+//	m_msgLHtmlTmpl = getMsgTmplHtml("msgleftTmpl");
+//	m_msgLHtmlTmpl.replace("%1", m_msgLPicPath);
+//
+//	// ç¡®ä¿è·¯å¾„æ ¼å¼æ­£ç¡®
+//	QUrl imgUrl = QUrl::fromLocalFile(gstrLoginHeadPath);
+//	qDebug() << "è½¬æ¢åçš„å¤´åƒè·¯å¾„ï¼š" << imgUrl.toString();
+//
+//	m_msgRHtmlTmpl = getMsgTmplHtml("msgrightTmpl");
+//	//m_msgRHtmlTmpl.replace("%1", gstrLoginHeadPath);
+//	m_msgRHtmlTmpl.replace("%1", imgUrl.toString());
+//}
+
+
+
+
+#include <QFile>
+#include <QByteArray>
+QString encodeImageToBase64(const QString& filePath) {
+	QFile file(filePath);
+	if (!file.open(QIODevice::ReadOnly)) {
+		qDebug() << "æ— æ³•æ‰“å¼€å¤´åƒ: " << filePath;
+		return "";
+	}
+	QByteArray imageData = file.readAll();
+	file.close();
+	return QString("data:image/png;base64,") + imageData.toBase64();
 }
+
+
+
+void MsgHtmlObj::initHtmlTmpl()					//å¯ç”¨ç‰ˆæœ¬ï¼Œä½†æ˜¯å•å­—ç¬¦ä¸èƒ½ç”¨
+{
+	// **1ï¸âƒ£ è¯»å– msgleftTmpl.html**
+	m_msgLHtmlTmpl = getMsgTmplHtml("msgleftTmpl");
+
+	// **2ï¸âƒ£ æ›¿æ¢å¤´åƒ**
+	QString base64Image = encodeImageToBase64(m_msgLPicPath);
+	qDebug() << "å·¦ä¾§å¤´åƒ Base64: " << base64Image.left(50) << "...";
+	m_msgLHtmlTmpl.replace("%1", base64Image);
+
+	// **3ï¸âƒ£ å³ä¾§å¤´åƒ**
+	QString base64RightImage = encodeImageToBase64(gstrLoginHeadPath);
+	qDebug() << "å³ä¾§å¤´åƒ Base64: " << base64RightImage.left(50) << "...";
+	m_msgRHtmlTmpl = getMsgTmplHtml("msgrightTmpl");
+	m_msgRHtmlTmpl.replace("%1", base64RightImage);
+}
+
+//void MsgHtmlObj::initHtmlTmpl()
+//{
+//	m_msgLHtmlTmpl = getMsgTmplHtml("msgleftTmpl");
+//	// æ›¿æ¢å¤´åƒä¹‹ç±»
+//	m_msgLHtmlTmpl.replace("%1", encodeImageToBase64(m_msgLPicPath));
+//
+//	m_msgRHtmlTmpl = getMsgTmplHtml("msgrightTmpl");
+//	m_msgRHtmlTmpl.replace("%1", encodeImageToBase64(gstrLoginHeadPath));
+//}
+
+
+
 
 QString MsgHtmlObj::getMsgTmplHtml(const QString& code)
 {
-	//½«Êı¾İÈ«²¿¶ÁÈ¡³öÀ´£¬È»ºóÔÙ·µ»Ø
+	//å°†æ•°æ®å…¨éƒ¨è¯»å–å‡ºæ¥ï¼Œç„¶åå†è¿”å›
 	QFile file(":/Resources/MainWindow/MsgHtml/" + code + ".html");
 
 	file.open(QFile::ReadOnly);
@@ -26,14 +87,14 @@ QString MsgHtmlObj::getMsgTmplHtml(const QString& code)
 
 	if (file.isOpen())
 	{
-		//È«²¿Ò»´ÎĞÔ¶ÁÈ¡
+		//å…¨éƒ¨ä¸€æ¬¡æ€§è¯»å–
 		strData = QLatin1String(file.readAll());
 	}
 	else
 	{
-		//information £¨¸¸´°ÌåÖ¸Õë£¬±êÌâ£¬ÌáÊ¾ÄÚÈİ£©
-		//ÒòÎªµ±Ç°Ğ´´úÂëµÄ¶ÔÏó£¬ÊÇ´ÓQObjectÅÉÉúÀ´µÄ£¬²»ÊÇ´ÓÄ³¸ö²¿¼şÅÉÉúÀ´µÄ
-		//Òò´ËÒªĞ´¿Õ
+		//information ï¼ˆçˆ¶çª—ä½“æŒ‡é’ˆï¼Œæ ‡é¢˜ï¼Œæç¤ºå†…å®¹ï¼‰
+		//å› ä¸ºå½“å‰å†™ä»£ç çš„å¯¹è±¡ï¼Œæ˜¯ä»QObjectæ´¾ç”Ÿæ¥çš„ï¼Œä¸æ˜¯ä»æŸä¸ªéƒ¨ä»¶æ´¾ç”Ÿæ¥çš„
+		//å› æ­¤è¦å†™ç©º
 		QMessageBox::information(nullptr, "Tips", "Failed to init html!");
 		return QString("");
 	}
@@ -42,166 +103,327 @@ QString MsgHtmlObj::getMsgTmplHtml(const QString& code)
 	return strData;
 }
 
-MsgWebView::MsgWebView(QWidget *parent)
+
+MsgWebView::MsgWebView(QWidget *parent)				//åŸç‰ˆ
 	: QWebEngineView(parent)
+	,m_channel(new QWebChannel(this))
 {
 	MsgWebPage* page = new MsgWebPage(this);
 	setPage(page);
 
-	QWebChannel* channel = new QWebChannel(this);
+	//QWebChannel* channel = new QWebChannel(this);
 	m_msgHtmlObj = new MsgHtmlObj(this);
-	channel->registerObject("external", m_msgHtmlObj);
-	this->page()->setWebChannel(channel);
+	m_channel->registerObject("external0", m_msgHtmlObj);
 
-	//³õÊ¼»¯½ÓÊÕĞÅÏ¢Ò³Ãæ
+	TalkWindowShell* talkWindowShell = WindowManager::getInstance()->getTalkWindowShell();
+	connect(this, &MsgWebView::signalSendMsg, talkWindowShell, &TalkWindowShell::updateSendTcpMsg);
+
+	//å½“å‰æ­£æ„å»ºçš„èŠå¤©çª—å£çš„ID(QQå·)
+	QString strTalkId = WindowManager::getInstance()->getCreatingTalkId();
+
+	QSqlQueryModel queryEmployeeModel;
+	QString strEmployeeID, strPicturePath;
+	QString strExternal;
+	bool isGroupTalk = false;
+
+	//è·å–å…¬å¸ç¾¤ID
+	queryEmployeeModel.setQuery(QString("SELECT departmentID FROM tab_department WHERE department_name = '%1'")
+		.arg(QStringLiteral("å…¬å¸ç¾¤")));
+	QModelIndex companyIndex = queryEmployeeModel.index(0, 0);
+	QString strCompanyID = queryEmployeeModel.data(companyIndex).toString();
+
+	if (strTalkId == strCompanyID)			//å…¬å¸ç¾¤èŠ
+	{
+		isGroupTalk = true;
+		queryEmployeeModel.setQuery("SELECT employeeID,picture FROM tab_employees WHERE status = 1");
+	}
+	else
+	{
+		if (strTalkId.length() == 4)			//å…¶ä»–ç¾¤èŠ
+		{
+			queryEmployeeModel.setQuery(QString("SELECT employeeID,picture FROM tab_employees WHERE status = 1 AND departmentID = %1").arg(strTalkId));
+		}
+		else			//å•ç‹¬èŠå¤©
+		{
+			//è·å–å¯¹æ–¹QQå·
+			queryEmployeeModel.setQuery(QString("SELECT picture FROM tab_employees WHERE status = 1 AND employeeID = %1").arg(strTalkId));
+
+			//é€šè¿‡ç´¢å¼•ï¼Œæ‰¾å‡ºå›¾ç‰‡è·¯å¾„ï¼Œå¹¶è½¬æˆå­—ç¬¦ä¸²
+			QModelIndex index = queryEmployeeModel.index(0, 0);
+			strPicturePath = queryEmployeeModel.data(index).toString();
+
+			strExternal = "external_" + strTalkId;
+
+			//æ„å»ºç½‘é¡µå¯¹è±¡
+			MsgHtmlObj* msgHtmlObj = new MsgHtmlObj(this, strPicturePath);
+			m_channel->registerObject(strExternal, msgHtmlObj);
+		}
+	}
+
+	if (isGroupTalk)
+	{
+		QModelIndex employeeModelIndex, pictureModelIndex;
+		int rows = queryEmployeeModel.rowCount();
+		for (int i = 0; i < rows; ++i)
+		{
+			employeeModelIndex = queryEmployeeModel.index(i, 0);
+			pictureModelIndex = queryEmployeeModel.index(i, 1);
+
+			strEmployeeID = queryEmployeeModel.data(employeeModelIndex).toString();
+			strPicturePath = queryEmployeeModel.data(pictureModelIndex).toString();
+
+			strExternal = "external_" + strEmployeeID;
+
+			MsgHtmlObj* msgHtmlObj = new MsgHtmlObj(this, strPicturePath);
+			m_channel->registerObject(strExternal, msgHtmlObj);
+		}
+	}
+
+	//åˆå§‹åŒ–æ¥æ”¶ä¿¡æ¯é¡µé¢
 	this->load(QUrl("qrc:/Resources/MainWindow/MsgHtml/msgTmpl.html"));
+	this->page()->setWebChannel(m_channel);
 }
+
+//MsgWebView::MsgWebView(QWidget* parent)
+//	: QWebEngineView(parent)
+//	, m_channel(new QWebChannel(this))
+//{
+//	MsgWebPage* page = new MsgWebPage(this);
+//	setPage(page);
+//
+//	// 1) é»˜è®¤ external0
+//	m_msgHtmlObj = new MsgHtmlObj(this);
+//	m_channel->registerObject("external0", m_msgHtmlObj);
+//
+//	 //æ·»åŠ ä¸€ä¸ªé€šç”¨ external å¯¹è±¡ï¼Œè¿™æ · JS ä¸­ external = channel.objects.external å°±ä¸ä¼šæ˜¯ undefined
+//	MsgHtmlObj* commonObj = new MsgHtmlObj(this);
+//	m_channel->registerObject("external", commonObj);
+//
+//	// 2) è·å–å½“å‰èŠå¤©ID
+//	QString strTalkId = WindowManager::getInstance()->getCreatingTalkId();
+//
+//	bool isGroupTalk = false;
+//	QSqlQueryModel queryEmployeeModel;
+//
+//	// 3) åˆ¤æ–­å…¬å¸ç¾¤ID
+//	queryEmployeeModel.setQuery(QString("SELECT departmentID FROM tab_department WHERE department_name='å…¬å¸ç¾¤' "));
+//	QString strCompanyID = queryEmployeeModel.index(0, 0).data().toString();
+//
+//	if (strTalkId == strCompanyID) {
+//		// å…¬å¸ç¾¤
+//		isGroupTalk = true;
+//		queryEmployeeModel.setQuery("SELECT employeeID, picture FROM tab_employees WHERE status=1");
+//	}
+//	else if (strTalkId.length() == 4) {
+//		// å…¶ä»–ç¾¤
+//		isGroupTalk = true;
+//		queryEmployeeModel.setQuery(
+//			QString("SELECT employeeID, picture FROM tab_employees WHERE status=1 AND departmentID=%1")
+//			.arg(strTalkId)
+//		);
+//	}
+//	else {
+//		// å•èŠ
+//		isGroupTalk = false;
+//		queryEmployeeModel.setQuery(
+//			QString("SELECT employeeID, picture FROM tab_employees WHERE status=1 AND employeeID=%1")
+//			.arg(strTalkId)
+//		);
+//	}
+//
+//	// 4) å¦‚æœæ˜¯ç¾¤èŠï¼Œå°±å¯¹æ‰€æœ‰å‘˜å·¥å¾ªç¯æ³¨å†Œ
+//	if (isGroupTalk)
+//	{
+//		int rows = queryEmployeeModel.rowCount();
+//		for (int i = 0; i < rows; ++i) {
+//			QString empIdStr = queryEmployeeModel.index(i, 0).data().toString();
+//			QString picPath = queryEmployeeModel.index(i, 1).data().toString();
+//			QString strExternal = "external_" + empIdStr;
+//
+//			MsgHtmlObj* msgHtmlObj = new MsgHtmlObj(this, picPath);
+//			m_channel->registerObject(strExternal, msgHtmlObj);
+//			qDebug() << "æ³¨å†Œäº†å¯¹è±¡:" << strExternal;
+//		}
+//	}
+//	// 5) å¦‚æœå•èŠï¼Œåªéœ€è¦æ³¨å†Œ1ä¸ª
+//	else
+//	{
+//		// ä¸€èˆ¬åªè¿”å›1è¡Œ 1ä¸ªç»“æœ
+//		if (queryEmployeeModel.rowCount() > 0)
+//		{
+//			QString empIdStr = queryEmployeeModel.index(0, 0).data().toString();
+//			QString picPath = queryEmployeeModel.index(0, 1).data().toString();
+//			QString strExternal = "external_" + empIdStr;
+//
+//			MsgHtmlObj* msgHtmlObj = new MsgHtmlObj(this, picPath);
+//			m_channel->registerObject(strExternal, msgHtmlObj);
+//			qDebug() << "æ³¨å†Œäº†å¯¹è±¡(å•èŠ):" << strExternal;
+//		}
+//	}
+//
+//	// 6) ç»‘å®š WebChannel, åŠ è½½é¡µé¢
+//	page->setWebChannel(m_channel);
+//	load(QUrl("qrc:/Resources/MainWindow/MsgHtml/msgTmpl.html"));
+//}
+
+
 
 MsgWebView::~MsgWebView()
 {}
 
-void MsgWebView::appendMsg(const QString& html)
+void MsgWebView::appendMsg(const QString& html, QString strObj)				//åŸç‰ˆ
 {
 	QJsonObject msgObj;
 	QString qsMsg;
-	const QList<QStringList>msgList = parseHtml(html);			//½âÎöhtml
+	const QList<QStringList>msgList = parseHtml(html);			//è§£æhtml
 
+	qDebug() << "[C++ debug] appendMsg called: strObj=" << strObj;
 
-	//ĞÅÏ¢ÀàĞÍ£¬Ä¬ÈÏ¸ø1
-	//0ÊÇ±íÇé£¬1ÊÇÎÄ±¾£¬2ÊÇÎÄ¼ş
-	//int msgType = 1;
-	//bool isImageMsg = false;			//Ä¬ÈÏµÄÍ¼Æ¬ĞÅÏ¢
-	//int imageNum = 0;				//±íÇéÊıÁ¿£¬Ä¬ÈÏ¸ø0
-	//QString strData;					//055£¬008£¬±íÇéÃû³Æ£¬¿í¶È²»¹»ÓÃ0²¹È«
+	//ä¿¡æ¯ç±»å‹ï¼Œé»˜è®¤ç»™1
+	//0æ˜¯è¡¨æƒ…ï¼Œ1æ˜¯æ–‡æœ¬ï¼Œ2æ˜¯æ–‡ä»¶
+	int msgType = 1;
+	bool isImageMsg = false;			//é»˜è®¤çš„å›¾ç‰‡ä¿¡æ¯
+	int imageNum = 0;				//è¡¨æƒ…æ•°é‡ï¼Œé»˜è®¤ç»™0
+	QString strData;					//055ï¼Œ008ï¼Œè¡¨æƒ…åç§°ï¼Œå®½åº¦ä¸å¤Ÿç”¨0è¡¥å…¨
 
 	for (int i = 0; i < msgList.size(); i++)
 	{
-		//Èç¹ûmsgListµ±È¨Ñ­»·µÄÁ´±íµÄµÚÒ»¸öÔªËØ ÊÇ imgÎÄ¼ş
+		//å¦‚æœmsgListå½“æƒå¾ªç¯çš„é“¾è¡¨çš„ç¬¬ä¸€ä¸ªå…ƒç´  æ˜¯ imgæ–‡ä»¶
 		if (msgList.at(i).at(0) == "img")
 		{
-			//»ñÈ¡Í¼Æ¬Â·¾¶
-			//ÕâÀïĞ´1£¬0ÊÇimg£¬1ÊÇÍ¼Æ¬µÄÕæÊµÄÚÈİ
+			//è·å–å›¾ç‰‡è·¯å¾„
+			//è¿™é‡Œå†™1ï¼Œ0æ˜¯imgï¼Œ1æ˜¯å›¾ç‰‡çš„çœŸå®å†…å®¹
 			QString imagePath = msgList.at(i).at(1);
-			QPixmap pixmap;			//ÓÃÓÚ¼ÓÔØÍ¼Æ¬
+			QPixmap pixmap;			//ç”¨äºåŠ è½½å›¾ç‰‡
 
-			//»ñÈ¡±íÇéÃû³ÆµÄÎ»ÖÃ
-			//±íÇéÂ·¾¶
-			//QString strEmotionPath = "qrc:/Resources/MainWindow/emotion/";
-			//int pos = strEmotionPath.size();			//±íÇéÂ·¾¶³¤¶È
-			//isImageMsg = true;
+			//è·å–è¡¨æƒ…åç§°çš„ä½ç½®
+			//è¡¨æƒ…è·¯å¾„
+			QString strEmotionPath = "qrc:/Resources/MainWindow/emotion/";
+			int pos = strEmotionPath.size();			//è¡¨æƒ…è·¯å¾„é•¿åº¦
+			isImageMsg = true;
 
-			//»ñÈ¡±íÇéÃû³Æ
-			//Í¨¹ımid()·½·¨£¬½ØÈ¡Õû¸ö×Ö·û´®ÖĞµÄ²¿·Ö×Ö·û´®
-			//QString strEmotionName = imagePath.mid(pos);
-			//°É¡¾.png¡¿ÓÃ¡¾¿Õ¡¿Ìæ»»£¬Ö±½Ó¸Ä±äµÄ¾ÍÊÇstrEmotionName±¾Éí
-			//strEmotionName.replace(".png", "");
+			//è·å–è¡¨æƒ…åç§°
+			//é€šè¿‡mid()æ–¹æ³•ï¼Œæˆªå–æ•´ä¸ªå­—ç¬¦ä¸²ä¸­çš„éƒ¨åˆ†å­—ç¬¦ä¸²
+			QString strEmotionName = imagePath.mid(pos);
+			//æŠŠã€.pngã€‘ç”¨ã€ç©ºã€‘æ›¿æ¢ï¼Œç›´æ¥æ”¹å˜çš„å°±æ˜¯strEmotionNameæœ¬èº«
+			strEmotionName.replace(".png", "");
 
-			//¸ù¾İ±íÇéÃû³ÆµÄ³¤¶È£¬½øĞĞÉèÖÃ±íÇéÊı¾İ
-			//²»×ã 3Î»£¬Ôò²»×ã3Î»£¬Èç23.png,Ôò²»×ãÎª023.png
-			//int emotionNameLength = strEmotionName.length();
+			//æ ¹æ®è¡¨æƒ…åç§°çš„é•¿åº¦ï¼Œè¿›è¡Œè®¾ç½®è¡¨æƒ…æ•°æ®
+			//ä¸è¶³ 3ä½ï¼Œåˆ™è¡¥è¶³3ä½ï¼Œå¦‚23.png,åˆ™è¡¥è¶³ä¸º023.png
+			int emotionNameLength = strEmotionName.length();				//è§†é¢‘é‡Œé¢ç”¨çš„ä¸æ˜¯emotionNameLengthè€Œæ˜¯emotionNameL
 
-			//ÅĞ¶Ï³¤¶È
-			//if (emotionNameLength == 1)
-			//{
-			//	strData = strData + "00" + strEmotionName;
-			//}
-			//else if (emotionNameLength == 2)
-			//{
-			//	strData = strData + "0" + strEmotionName;
-			//}
-			//else if (emotionNameLength == 3)
-			//{
-			//	strData = strData + strEmotionName;
-			//}
-
-			//msgType = 0;			//±íÇéĞÅÏ¢
-			//imageNum++;
-
-			//ÅĞ¶Ï×î×ó±ßµÄ3¸ö×Ö·û£¬ÊÇ·ñÎªqrc
-			if (imagePath.left(3) == "qrc")				//¼ÙÉèÂ·¾¶Îª qrc:/MainWindow/xxx
+			//åˆ¤æ–­é•¿åº¦
+			if (emotionNameLength == 1)
 			{
-				//mid()·½·¨£¬´ÓÖĞ¼äÎ»ÖÃ¿ªÊ¼½ØÈ¡
-				//´ÓµÚÈı¸ö×Ö·û¿ªÊ¼½ØÈ¡£¬¾ÍÊÇ":"Ã°ºÅ¿ªÊ¼
-				//È¥µô±íÇéÂ·¾¶ÖĞqrc
-				pixmap.load(imagePath.mid(3));		//´ÓÎ»ÖÃ3¿ªÊ¼½ØÈ¡£¨Î»ÖÃ0ÊÇq£©£¬¼´		:/MainWindow/xxx
+				strData = strData + "00" + strEmotionName;
+			}
+			else if (emotionNameLength == 2)
+			{
+				strData = strData + "0" + strEmotionName;
+			}
+			else if (emotionNameLength == 3)
+			{
+				strData = strData + strEmotionName;
+			}
+
+			msgType = 0;			//è¡¨æƒ…ä¿¡æ¯
+			imageNum++;
+
+			//åˆ¤æ–­æœ€å·¦è¾¹çš„3ä¸ªå­—ç¬¦ï¼Œæ˜¯å¦ä¸ºqrc
+			if (imagePath.left(3) == "qrc")				//å‡è®¾è·¯å¾„ä¸º qrc:/MainWindow/xxx
+			{
+				//mid()æ–¹æ³•ï¼Œä»ä¸­é—´ä½ç½®å¼€å§‹æˆªå–
+				//ä»ç¬¬ä¸‰ä¸ªå­—ç¬¦å¼€å§‹æˆªå–ï¼Œå°±æ˜¯":"å†’å·å¼€å§‹
+				//å»æ‰è¡¨æƒ…è·¯å¾„ä¸­qrc
+				pixmap.load(imagePath.mid(3));		//ä»ä½ç½®3å¼€å§‹æˆªå–ï¼ˆä½ç½®0æ˜¯qï¼‰ï¼Œå³		:/MainWindow/xxx
 			}
 			else
 			{
-				//²»ÊÇqrcµÄ£¬¾ÍÖ±½Ó¼ÓÔØ
+				//ä¸æ˜¯qrcçš„ï¼Œå°±ç›´æ¥åŠ è½½
 				pixmap.load(imagePath);
 			}
 
-			//±íÇéÍ¼Æ¬html¸ñÊ½£¬ÎÄ±¾×éºÏ£¨Â·¾¶£¬¿í¶È£¬¸ß¶È£©
+			//è¡¨æƒ…å›¾ç‰‡htmlæ ¼å¼ï¼Œæ–‡æœ¬ç»„åˆï¼ˆè·¯å¾„ï¼Œå®½åº¦ï¼Œé«˜åº¦ï¼‰
 			QString imgPath=QString("<img src=\"%1\"width=\"%2\"heigh=\"%3\"/>")
-				.arg(imagePath).arg(pixmap.width()).arg(pixmap.height());			//\" ±íÊ¾ÔÚ×Ö·û´®ÖĞ²åÈëÒ»¸öË«ÒıºÅ×Ö·û£¨"£©
+				.arg(imagePath).arg(pixmap.width()).arg(pixmap.height());			//\" è¡¨ç¤ºåœ¨å­—ç¬¦ä¸²ä¸­æ’å…¥ä¸€ä¸ªåŒå¼•å·å­—ç¬¦ï¼ˆ"ï¼‰
 
-			//´æµ½×Ö·û´®ÖĞ
+			//å­˜åˆ°å­—ç¬¦ä¸²ä¸­
 			qsMsg += imgPath;
 		}
 		else if (msgList.at(i).at(0) == "text")
 		{
-			//ÕâÀïĞ´1£¬0ÊÇtext£¬1ÊÇÎÄ±¾µÄÕæÊµÄÚÈİ
+			//è¿™é‡Œå†™1ï¼Œ0æ˜¯textï¼Œ1æ˜¯æ–‡æœ¬çš„çœŸå®å†…å®¹
 			qsMsg += msgList.at(i).at(1);
-			//strData = qsMsg;				//¸³Öµ
+			strData = qsMsg;				//èµ‹å€¼
 		}
 	}
 
-	//²åÈëµ½Json¶ÔÏóÖĞ£¬ÊÇ¼üÖµ¶Ô£¬
-	//¡°MSG¡±ÊÇ¼ü£¬qsMsgÊÇÖµ
-	//ÌåÏÖÔÚ×ÊÔ´ÎÄ¼şÖĞ£¬ÒÔmsgleftTmpl.htmlÎªÀı
-	//ÀïÃæµÄÄÚÈİÖĞµÄ¡¾MSG¡¿<div class="msg">{{MSG}}<span class>="trigon"
+	//æ’å…¥åˆ°Jsonå¯¹è±¡ä¸­ï¼Œæ˜¯é”®å€¼å¯¹ï¼Œ
+	//â€œMSGâ€æ˜¯é”®ï¼ŒqsMsgæ˜¯å€¼
+	//ä½“ç°åœ¨èµ„æºæ–‡ä»¶ä¸­ï¼Œä»¥msgleftTmpl.htmlä¸ºä¾‹
+	//é‡Œé¢çš„å†…å®¹ä¸­çš„ã€MSGã€‘<div class="msg">{{MSG}}<span class>="trigon"
 	msgObj.insert("MSG", qsMsg);
 
 
-	//Ò»ÇĞµÄÄ¿µÄ£¬¶¼ÊÇÎªÁË×ª³ÉQString×Ö·û´®ÀàĞÍ
-	//ÔÙ×ª»»³ÉJsonÎÄµµ£¬²¢ÇÒÒª×ª³ÉUTF-8µÄÎÄµµ
-	//QJsonDocument::Compact£¬½ô´ÕµÄÒâË¼
+	//ä¸€åˆ‡çš„ç›®çš„ï¼Œéƒ½æ˜¯ä¸ºäº†è½¬æˆQStringå­—ç¬¦ä¸²ç±»å‹
+	//å†è½¬æ¢æˆJsonæ–‡æ¡£ï¼Œå¹¶ä¸”è¦è½¬æˆUTF-8çš„æ–‡æ¡£
+	//QJsonDocument::Compactï¼Œç´§å‡‘çš„æ„æ€
 	const QString& Msg = QJsonDocument(msgObj).toJson(QJsonDocument::Compact);
+	qDebug() << "[C++ debug] => Call appendHtml(...) in JS, param=" << Msg;
 	this->page()->runJavaScript(QString("appendHtml(%1)").arg(Msg));
-	//·¢ĞÅÏ¢
-	//if (strObj == "0")
-	//{
-	//	//ÊôÓÚJava½Å±¾ÓïÑÔ
-	//	this->page()->runJavaScript(QString("appendHtml0(%1)").arg(Msg));
 
-	//	//Èç¹û·¢ËÍµÄÊÇ±íÇé£¬ÄÃ¾Í¶Ô·¢ËÍµÄÊı¾İ½øĞĞ´¦Àí
-	//	if (isImageMsg)
-	//	{
-	//		//µ±Ç°strData±£´æµÄÖ»ÊÇ±íÇéµÄÃû³Æ£¬Õ¼Î»ÊÇ3¸ö¿í¶È
-	//		//ÕâÀï¼ÓÉÏ±íÇéµÄÊıÁ¿
-	//		strData = QString::number(imageNum) + "images" + strData;
-	//	}
+	//å‘ä¿¡æ¯
+	if (strObj == "0")
+	{
+		//å±äºJavaè„šæœ¬è¯­è¨€
+		qDebug() << "[C++ debug] => strObj=0, call appendHtml0(...) in JS";
+		this->page()->runJavaScript(QString("appendHtml0(%1)").arg(Msg));
 
-	//	//·¢ËÍĞÅºÅ£¬·¢ËÍĞÅÏ¢
-	//	emit signalSendMsg(strData, msgType);
-	//}
-	//else    //À´ĞÅ
-	//{
-	//	//×·¼ÓÊı¾İ£¬ÕâÀï¾ÍÊÇrecvHtml
-	//	this->page()->runJavaScript(QString("recvHtml_%1(%2)").arg(strObj).arg(Msg));
-	//}
+		//å¦‚æœå‘é€çš„æ˜¯è¡¨æƒ…ï¼Œæ‹¿å°±å¯¹å‘é€çš„æ•°æ®è¿›è¡Œå¤„ç†
+		if (isImageMsg)
+		{
+			//å½“å‰strDataä¿å­˜çš„åªæ˜¯è¡¨æƒ…çš„åç§°ï¼Œå ä½æ˜¯3ä¸ªå®½åº¦
+			//è¿™é‡ŒåŠ ä¸Šè¡¨æƒ…çš„æ•°é‡
+			strData = QString::number(imageNum) + "images" + strData;
+		}
+
+		//å‘é€ä¿¡å·ï¼Œå‘é€ä¿¡æ¯
+		emit signalSendMsg(strData, msgType);
+	}
+	else    //æ¥ä¿¡
+	{
+		//è¿½åŠ æ•°æ®ï¼Œè¿™é‡Œå°±æ˜¯recvHtml
+		qDebug() << "[C++ debug] => strObj=" << strObj << ", call recvHtml_" << strObj << "(...) in JS";
+		this->page()->runJavaScript(QString("recvHtml_%1(%2)").arg(strObj).arg(Msg));
+	}
 }
 
-QList<QStringList> MsgWebView::parseHtml(const QString & html)
-{
-	//ÒòÎª´«½øÀ´µÄÊÇhtmlÎÄ¼ş£¬½«Ëü×ª»»³ÉQt½ÚµãÎÄ¼ş
-	QDomDocument doc;
-	doc.setContent(html);				//×ª»»
 
-	//ÏëÒª½âÎöµÄ½Úµã£¬¾ÍÊÇhtmlÀïÃæµÄbody
-	//ÏëÄÃµ½body£¬ĞèÒªÏÈ»ñÈ¡ÔªËØ
-	//½ÚµãÔªËØ
+
+
+
+
+QList<QStringList> MsgWebView::parseHtml(const QString & html)				//åŸç‰ˆ
+{
+	//å› ä¸ºä¼ è¿›æ¥çš„æ˜¯htmlæ–‡ä»¶ï¼Œå°†å®ƒè½¬æ¢æˆQtèŠ‚ç‚¹æ–‡ä»¶
+	QDomDocument doc;
+	doc.setContent(html);				//è½¬æ¢
+
+	//æƒ³è¦è§£æçš„èŠ‚ç‚¹ï¼Œå°±æ˜¯htmlé‡Œé¢çš„body
+	//æƒ³æ‹¿åˆ°bodyï¼Œéœ€è¦å…ˆè·å–å…ƒç´ 
+	//èŠ‚ç‚¹å…ƒç´ 
 	const QDomElement& root = doc.documentElement();
-	//»ñÈ¡µÚÒ»¸öÔªËØ£¬nodeÊÇ½ÚµãÀàĞÍ£¬»¹ĞèÒª¶Ô½Úµã½øĞĞ½âÎö
+	//è·å–ç¬¬ä¸€ä¸ªå…ƒç´ ï¼Œnodeæ˜¯èŠ‚ç‚¹ç±»å‹ï¼Œè¿˜éœ€è¦å¯¹èŠ‚ç‚¹è¿›è¡Œè§£æ
 	const QDomNode& node = root.firstChildElement("body");
 
 	return parseDocNode(node);
 }
 
+
 bool MsgWebPage::acceptNavigationRequest(const QUrl& url, NavigationType type, bool isMainFrame)
 {
-	//½ö½ÓÊÕ qrc:/*.html
-	//ÅĞ¶ÏURLÀàĞÍ£¬ÊÇ·ñÎªqrcÀàĞÍ
+	//ä»…æ¥æ”¶ qrc:/*.html
+	//åˆ¤æ–­URLç±»å‹ï¼Œæ˜¯å¦ä¸ºqrcç±»å‹
 	if (url.scheme() == QString("qrc"))
 	{
 		return true;
