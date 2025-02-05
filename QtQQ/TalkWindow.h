@@ -19,6 +19,7 @@ public:
 	// ========== ÐÂÔö£ºsetTalkId ==========
 	void setTalkId(const QString& newId);
 private slots:
+	void onFileOpenBtnClicked(bool);
 	void onSendBtnClicked(bool);
 	void onItemDoubleClicked(QTreeWidgetItem* item,int column);
 

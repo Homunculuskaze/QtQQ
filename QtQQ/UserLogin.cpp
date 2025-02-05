@@ -302,10 +302,11 @@ void UserLogin::onLoginBtnClicked()
 		return;
 	}
 
-	////更新登录状态为"登录"
-	//QString strSqlStatus = QString("UPDATE tab_employee SET online = 2 WHERE employeeID = %1").arg(gLoginEmployeeID);
-	//QSqlQuery queryStatus(strSqlStatus);
-	//queryStatus.exec();
+	//更新登录状态为"登录"
+	QString strSqlStatus = QString("UPDATE tab_employees SET online_status = 2 WHERE employeeID = %1").arg(gLoginEmployeeID);
+	//QString strSqlStatus = QString("UPDATE tab_employee SET online_status = 2 AND employeeID = %1").arg(gLoginEmployeeID);
+	QSqlQuery queryStatus(strSqlStatus);
+	queryStatus.exec();
 
 	//账号正确，再显示窗口
 	close();

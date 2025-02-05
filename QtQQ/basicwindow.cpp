@@ -9,6 +9,10 @@
 #include <QPainter>
 #include <QApplication>
 #include <QMouseEvent>
+#include <QSqlQuery>
+
+//外部全局变量，登录者ID
+extern QString gLoginEmployeeID;
 
 BasicWindow::BasicWindow(QWidget* parent)
 	:QDialog(parent)
@@ -163,6 +167,11 @@ void BasicWindow::onShowNormal(bool)
 
 void BasicWindow::onShowQuit(bool)
 {
+	//更新登录状态为"离线"
+	QString strSqlStatus = QString("UPDATE tab_employees SET online_status = 1 WHERE employeeID = %1").arg(gLoginEmployeeID);
+	QSqlQuery queryStatus(strSqlStatus);			//queryStatus只是个变量名，这个构造方式实际上是调用 QSqlQuery(const QString &query, QSqlDatabase db = QSqlDatabase())，它会自动使用默认数据库，并将 strSqlStatus 作为查询语句。
+	queryStatus.exec();
+
 	QApplication::quit();
 }
 

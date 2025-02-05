@@ -64,16 +64,6 @@ void MsgHtmlObj::initHtmlTmpl()					//可用版本，但是单字符不能用
 	m_msgRHtmlTmpl.replace("%1", base64RightImage);
 }
 
-//void MsgHtmlObj::initHtmlTmpl()
-//{
-//	m_msgLHtmlTmpl = getMsgTmplHtml("msgleftTmpl");
-//	// 替换头像之类
-//	m_msgLHtmlTmpl.replace("%1", encodeImageToBase64(m_msgLPicPath));
-//
-//	m_msgRHtmlTmpl = getMsgTmplHtml("msgrightTmpl");
-//	m_msgRHtmlTmpl.replace("%1", encodeImageToBase64(gstrLoginHeadPath));
-//}
-
 
 
 
@@ -141,6 +131,7 @@ MsgWebView::MsgWebView(QWidget *parent)				//原版
 	{
 		if (strTalkId.length() == 4)			//其他群聊
 		{
+			isGroupTalk = true;
 			queryEmployeeModel.setQuery(QString("SELECT employeeID,picture FROM tab_employees WHERE status = 1 AND departmentID = %1").arg(strTalkId));
 		}
 		else			//单独聊天

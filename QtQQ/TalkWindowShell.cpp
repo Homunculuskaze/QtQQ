@@ -6,6 +6,7 @@
 #include "TalkWindowItem.h"
 #include "WindowManager.h"
 #include "QMsgTextEdit.h"
+#include "ReceiveFile.h"
 #include <QListWidget>
 //#include <QPoint>
 #include <QFile>
@@ -14,6 +15,11 @@
 #include <QDir>
 #include <QRegularExpression>
 #include <QSqlQuery>
+
+QString gfileName;				//文件名称。在这里定义，在ReceiveFile.cpp里面声明外部链接extern QString gfileName;
+QString gfileData;				//文件内容。在这里定义，在ReceiveFile.cpp里面声明外部链接extern QString gfileData;
+
+
 // 简易函数：将 "01005" -> "1005"，"00000" -> "0"，"10005" -> "10005"
 static QString removeLeadingZeros(const QString& str)
 {
@@ -362,6 +368,8 @@ void TalkWindowShell::getEmployeesID(QStringList& employeesList)
 	QSqlQueryModel queryModel;
 	queryModel.setQuery("SELECT employeeID FROM tab_employees WHERE status = 1");
 
+
+
 	int employeesNum = queryModel.rowCount();
 	qDebug() << "获取到的员工数量：" << employeesNum;
 
@@ -688,7 +696,7 @@ void TalkWindowShell::handleReceivedMsg(int senderEmployeeID, int msgType, QStri
 
 	// 这里只处理 文本信息，表情信息。
 	// 文件类型，不调用这个方法
-	if (msgType == 1)	// 文本信息
+	if (msgType == 1)	// 文本信息												///////////这里开始可能有问题
 	{
 		// 将信息，转换为 html
 		msgTextEdit.document()->toHtml();
@@ -764,6 +772,8 @@ void TalkWindowShell::handleReceivedMsg(int senderEmployeeID, int msgType, QStri
 	// 因此 设置成友元类
 	talkWindow->ui.msgWidget->appendMsg(hemlText, QString::number(senderEmployeeID));
 
+	//qDebug() << "[DEBUG] 正在向目标窗口添加消息：" << strMsg;
+	//talkWindow->ui.msgWidget->appendMsg(strMsg, QString::number(senderEmployeeID));
 
 
 
@@ -1042,9 +1052,9 @@ void TalkWindowShell::processPendingData()						//原版   可以成功使用
 			else if (cMsgType == '2')			//文件信息
 			{
 				msgType = 2;
-				int bytesWidth = QString("bytes").length();
+				int bytesWidth = QString("bytes").length();		// 计算 bytes 的长度
 				int posBytes = strData.indexOf("bytes");			//indexOf是从0开始数，而不是1开始数
-				int posData_begin = strData.indexOf("data_begin");
+				int posData_begin = strData.indexOf("data_begin");			// data_begin，第一次出现的位置
 
 				//文件名称
 				//1.posBytes 是 strData 中 "bytes" 的起始位置，假设为 13。
@@ -1053,6 +1063,7 @@ void TalkWindowShell::processPendingData()						//原版   可以成功使用
 				//posBytes + bytesWidth：计算的是从 "bytes" 字符串的末尾开始的位置，也就是 posBytes + bytesWidth = 13+ 5 = 18，即 test.txt 的起始位置。
 				//posData_begin - posBytes - bytesWidth：计算的是从 "bytes" 后面开始到 "data_begin" 之前的字符数。即 26 - 13 - 5 = 8，表示文件名的长度是 8 个字符。
 				QString fileName = strData.mid(posBytes + bytesWidth, posData_begin - posBytes - bytesWidth); //以1 10005 2000 2 10 bytes test.txt data_begin helloword为例，
+				gfileName = fileName;
 
 				//文件内容
 				//mid() 函数有多个重载版本，其中常见的两个版本是：
@@ -1065,7 +1076,8 @@ void TalkWindowShell::processPendingData()						//原版   可以成功使用
 					例如：strData.mid(5, 10) 表示从位置 5 开始，提取 10 个字符的子字符串。*/
 				int dataLengthWidth;
 				int posData = posData_begin + QString("data_begin").length();			//1 10005 2000 2 10 bytes test.txt data_begin helloword为例， posData则定位hello的h
-				strMsg = strData.mid(posData);
+				strMsg = strData.mid(posData);		// 提取数据，文件数据
+				gfileData = strMsg;				// 将解析出来的 文件内容，赋值给全局变量
 
 				//根据employeeID获取发送者姓名
 				QString sender;
@@ -1082,12 +1094,33 @@ void TalkWindowShell::processPendingData()						//原版   可以成功使用
 				}
 
 				//接收文件的后续操作
+				ReceiveFile* recvFile = new ReceiveFile(this);
+
+				//用了点取消，发送返回信号
+				connect(recvFile, &ReceiveFile::refuseFile, [this]()
+					{
+						return;
+					});
+
+				//收到xxx的信息
+				//fromUtf8 方法将 UTF-8 编码的字节序列转换为 QString,fromLocal8Bit 方法将本地8位编码（通常是操作系统的默认编码）转换为 QString
+				QString msgLabel = QString::fromUtf8("收到来自") + sender + QString::fromUtf8("发来的文件，是否接收？");
+				//将文本字符串，设置到标签上
+				recvFile->setMsg(msgLabel);
+				recvFile->show();
 			}
 		}
 		else		//单聊
 		{			//索引是从 0 开始，假设 groupFlagWidth 为 4，employeeWidth 为 5，那么：表示从字符串的第 9 个字符（索引从 0 开始）开始截取
 			strReceiveEmployeeID = strData.mid(groupFlagWidth + employeeWidth, employeeWidth);			//因为是单聊，所以宽度还是employeeWidth
 			strWindowID = strSendEmployeeID;
+
+			//不是发给我的信息不做处理
+			// 接收者的ID 和 登陆者的ID ，不是一样的，则直接返回
+			if (strReceiveEmployeeID != gLoginEmployeeID)
+			{
+				return;
+			}
 
 			//获取信息的类型
 			QChar cMsgType = btData[groupFlagWidth + employeeWidth + employeeWidth];
@@ -1119,9 +1152,43 @@ void TalkWindowShell::processPendingData()						//原版   可以成功使用
 
 				//文件名称
 				QString fileName = strData.mid(posBytes + bytesWidth, posData_begin - posBytes - bytesWidth);
+				gfileName = fileName;
 
 				//文件内容
 				strMsg = strData.mid(posData_begin + data_beginWidth);		//如1 10005 2000 2 10 bytes test.txt data_begin helloword，从helloworld的h开始一直到结束
+				gfileData = strMsg;
+
+				//根据employeeID获取发送者姓名
+				QString sender;
+				int empID = strSendEmployeeID.toInt();			//转换成整型
+				QSqlQuery querySenderName;
+				querySenderName.prepare("SELECT employee_name FROM tab_employees WHERE employeeID = :empID");
+				querySenderName.bindValue(":empID", empID);
+				querySenderName.exec();			//执行一下SQL语句
+
+				// 判断，数据库里 是否有数据
+				if (querySenderName.first())
+				{
+					sender = querySenderName.value(0).toString();
+				}
+
+
+				//接收文件的后续操作
+				ReceiveFile* recvFile = new ReceiveFile(this);
+
+				//用了点取消，发送返回信号
+				connect(recvFile, &ReceiveFile::refuseFile, [this]()
+					{
+						return;
+					});
+
+				//收到xxx的信息
+				//fromUtf8 方法将 UTF-8 编码的字节序列转换为 QString,fromLocal8Bit 方法将本地8位编码（通常是操作系统的默认编码）转换为 QString
+				QString msgLabel = QString::fromUtf8("收到来自") + sender + QString::fromUtf8("发来的文件，是否接收？");
+
+				//将文本字符串，设置到标签上
+				recvFile->setMsg(msgLabel);
+				recvFile->show();
 			}
 		}
 
@@ -1130,6 +1197,8 @@ void TalkWindowShell::processPendingData()						//原版   可以成功使用
 		QWidget* widget = WindowManager::getInstance()->findWindowName(strWindowID);
 		if (widget)			//聊天窗口存在
 		{
+			qDebug() << "[DEBUG] 找到目标窗口：" << strWindowID;  // 打印目标窗口 ID
+
 			this->setCurrentWidget(widget);
 
 			//同步激活左侧聊天窗口
@@ -1138,6 +1207,7 @@ void TalkWindowShell::processPendingData()						//原版   可以成功使用
 		}
 		else     //聊天窗口未打开
 		{
+			qDebug() << "[DEBUG] 找不到窗口，目标窗口 ID：" << strWindowID;
 			return;
 		}
 

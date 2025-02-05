@@ -3,6 +3,7 @@
 #include "ContactItem.h"
 #include "CommonUtils.h"
 #include "WindowManager.h"
+#include "SendFile.h"
 #include <QToolTip>
 #include <QFile>
 #include <QMessageBox>
@@ -68,6 +69,11 @@ void TalkWindow::onItemDoubleClicked(QTreeWidgetItem* item, int column)
 	}
 }
 
+void TalkWindow::onFileOpenBtnClicked(bool)
+{
+	SendFile* sendFile = new SendFile(this);
+	sendFile->show();
+}
 
 /*
 void TalkWindow::initComPanyTalk()
@@ -472,6 +478,7 @@ void TalkWindow::initControl()
 
 	//发送文件信号
 	//connect(ui.fileopenBtn,SIGNAL(clicked(bool)), parent(), SLOT(onFileOpenBtnClicked(bool)));
+	connect(ui.fileopenBtn, SIGNAL(clicked(bool)), this, SLOT(onFileOpenBtnClicked(bool)));
 
 	//树，被双击的时候
 	//要带参数，双击的是哪一项，和哪一项的地址
