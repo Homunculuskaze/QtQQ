@@ -165,6 +165,7 @@ void BasicWindow::onShowNormal(bool)
 	activateWindow();
 }
 
+
 void BasicWindow::onShowQuit(bool)
 {
 	//更新登录状态为"离线"
